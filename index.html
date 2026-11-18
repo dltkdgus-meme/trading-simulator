@@ -1,0 +1,2698 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3일 랜덤 차트 매매 시뮬레이터 (시가 1,000원 · 1~50배 · 테이커 수수료 0.02%)</title>
+  <style>
+    :root {
+      --bg-main: #0b0e14;
+      --bg-panel: #131722;
+      --bg-card: #1a202e;
+      --bg-hover: #232b3e;
+      --border: #262f42;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --long: #10b981;
+      --long-bg: rgba(16, 185, 129, 0.14);
+      --long-hover: #059669;
+      --short: #f43f5e;
+      --short-bg: rgba(244, 63, 94, 0.14);
+      --short-hover: #e11d48;
+      --accent: #3b82f6;
+      --accent-bg: rgba(59, 130, 246, 0.16);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245, 158, 11, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Segoe UI', sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    .num {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Top Header / HUD */
+    header {
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-badge {
+      background: var(--accent-bg);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.4px;
+    }
+
+    .fee-badge {
+      background: var(--amber-bg);
+      color: var(--amber);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .brand h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .hud-stats {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .hud-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .hud-val {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .hud-divider {
+      width: 1px;
+      height: 26px;
+      background-color: var(--border);
+    }
+
+    /* Main Workspace Layout */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 405px;
+      gap: 14px;
+      padding: 14px 20px 20px;
+      max-width: 1640px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 1060px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Left Chart Section */
+    .chart-section {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 620px;
+    }
+
+    .chart-toolbar {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background-color: rgba(26, 32, 46, 0.45);
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tf-switch {
+      display: inline-flex;
+      background-color: var(--bg-main);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .tf-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tf-btn.active {
+      background-color: var(--accent);
+      color: #fff;
+    }
+
+    .toggle-chip {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .toggle-chip.active {
+      border-color: rgba(59, 130, 246, 0.55);
+      color: #93c5fd;
+      background-color: rgba(59, 130, 246, 0.12);
+    }
+
+    /* Zoom Control Bar inside Toolbar */
+    .zoom-group {
+      display: inline-flex;
+      align-items: center;
+      background-color: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .zoom-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+
+    .zoom-btn:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .zoom-indicator {
+      font-size: 11px;
+      color: var(--text-secondary);
+      padding: 0 6px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .price-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--bg-panel);
+      font-size: 13px;
+      flex-wrap: wrap;
+    }
+
+    .current-price-box {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .current-price {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+    }
+
+    .anchor-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background-color: var(--amber-bg);
+      color: var(--amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .ohlc-readout {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin-left: auto;
+    }
+
+    .ohlc-readout span b {
+      color: var(--text-primary);
+      font-weight: 600;
+      margin-left: 2px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      min-height: 440px;
+      background-color: #0d111a;
+    }
+
+    canvas#chartCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    canvas#chartCanvas.grabbing {
+      cursor: grabbing;
+    }
+
+    .chart-help-hint {
+      position: absolute;
+      top: 10px;
+      right: 78px;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(51, 65, 85, 0.65);
+      color: #94a3b8;
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 6px;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .review-banner {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(59, 130, 246, 0.92);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+      display: none;
+      z-index: 5;
+    }
+
+    .toast-msg {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(59, 130, 246, 0.55);
+      color: #f1f5f9;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 8px 15px;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 6;
+      white-space: nowrap;
+      max-width: 92%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toast-msg.show {
+      opacity: 1;
+    }
+
+    /* Playback Footer Bar */
+    .playback-bar {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background-color: var(--bg-card);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .time-progress-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 210px;
+      flex: 1;
+      max-width: 340px;
+    }
+
+    .time-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      background-color: var(--bg-main);
+      border-radius: 99px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #10b981);
+      width: 5%;
+      transition: width 0.15s ease;
+    }
+
+    .playback-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background-color: var(--bg-panel);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 13px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover:not(:disabled) {
+      background-color: var(--bg-hover);
+      border-color: #3b4863;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: #2563eb;
+    }
+
+    .btn-play-active {
+      background-color: var(--amber-bg);
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    /* Right Order & Position Panel */
+    .order-section {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .control-block {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .block-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .block-header .highlight-val {
+      color: var(--text-primary);
+      font-weight: 700;
+      font-size: 13.5px;
+    }
+
+    /* Custom Leverage Slider + Input + Quick Presets */
+    .lev-custom-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 10px;
+    }
+
+    .lev-slider {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+      height: 5px;
+    }
+
+    .lev-input-wrap {
+      display: flex;
+      align-items: center;
+      background-color: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 7px;
+      width: 68px;
+    }
+
+    .lev-input-wrap:focus-within {
+      border-color: var(--accent);
+    }
+
+    .lev-number-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 13.5px;
+      font-weight: 800;
+      text-align: right;
+      outline: none;
+    }
+
+    .lev-number-input::-webkit-outer-spin-button,
+    .lev-number-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .lev-number-input[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    .lev-unit {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 2px;
+    }
+
+    .pill-grid-6 {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 5px;
+    }
+
+    .pill-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .select-pill {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 4px;
+      border-radius: 7px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+
+    .select-pill:hover {
+      background-color: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .select-pill.active {
+      background-color: var(--accent-bg);
+      border-color: var(--accent);
+      color: #60a5fa;
+    }
+
+    .select-pill.close-pill.active {
+      background-color: rgba(248, 250, 252, 0.15);
+      border-color: #f8fafc;
+      color: #f8fafc;
+    }
+
+    .margin-preview {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .margin-preview-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .margin-preview b {
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    /* Long / Short Open Buttons */
+    .open-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .btn-open-long,
+    .btn-open-short {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 10px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transition: transform 0.1s ease, background-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn-open-long {
+      background-color: var(--long);
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+    }
+
+    .btn-open-long:hover:not(:disabled) {
+      background-color: var(--long-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-open-short {
+      background-color: var(--short);
+      box-shadow: 0 4px 14px rgba(244, 63, 94, 0.25);
+    }
+
+    .btn-open-short:hover:not(:disabled) {
+      background-color: var(--short-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-open-long:disabled,
+    .btn-open-short:disabled {
+      opacity: 0.32;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-subtext {
+      font-size: 10.5px;
+      font-weight: 500;
+      opacity: 0.92;
+    }
+
+    /* Current Position Card */
+    .position-box {
+      flex: 1;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 9px;
+    }
+
+    .empty-position {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      line-height: 1.55;
+      padding: 14px 8px;
+    }
+
+    .pos-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .pos-badge {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 9px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .pos-badge.long {
+      background-color: var(--long-bg);
+      color: var(--long);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    .pos-badge.short {
+      background-color: var(--short-bg);
+      color: var(--short);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+    }
+
+    .pos-pnl-hero {
+      background-color: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      text-align: center;
+    }
+
+    .pos-pnl-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .pos-pnl-amount {
+      font-size: 19px;
+      font-weight: 800;
+    }
+
+    .pos-pnl-roe {
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+
+    .pos-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      font-size: 11.5px;
+    }
+
+    .pos-stat {
+      background-color: rgba(11, 14, 20, 0.55);
+      padding: 6px 8px;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .pos-stat span {
+      color: var(--text-secondary);
+      font-size: 10.5px;
+    }
+
+    .pos-stat b {
+      color: var(--text-primary);
+      font-size: 12px;
+    }
+
+    /* Partial / Full Close Controls */
+    .close-control-box {
+      background-color: rgba(11, 14, 20, 0.65);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .close-preview-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+    }
+
+    .btn-close-pos {
+      width: 100%;
+      background-color: #f8fafc;
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      padding: 11px;
+      font-size: 13.5px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+
+    .btn-close-pos:hover {
+      background-color: #e2e8f0;
+    }
+
+    .text-long { color: var(--long) !important; }
+    .text-short { color: var(--short) !important; }
+    .text-amber { color: var(--amber) !important; }
+
+    /* Modal Overlay for 3-Day Final Summary */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(5, 8, 13, 0.8);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal-card {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 550px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 22px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: popIn 0.18s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-reason-tag {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background-color: var(--accent-bg);
+      color: #60a5fa;
+    }
+
+    .modal-result-box {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .modal-pnl {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 4px 0;
+    }
+
+    .summary-table {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(38, 47, 66, 0.6);
+      gap: 10px;
+    }
+
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+
+    .summary-row span {
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .summary-row b {
+      text-align: right;
+    }
+
+    /* Trade Log List inside 3-Day Summary Modal */
+    .trade-log-box {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .trade-log-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .trade-log-list {
+      max-height: 150px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 12px;
+    }
+
+    .trade-log-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      background-color: rgba(11, 14, 20, 0.55);
+      border-radius: 6px;
+      gap: 8px;
+    }
+
+    .coach-note {
+      background-color: rgba(59, 130, 246, 0.08);
+      border-left: 3px solid var(--accent);
+      padding: 10px 12px;
+      border-radius: 0 8px 8px 0;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #cbd5e1;
+    }
+
+    .modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top HUD -->
+  <header>
+    <div class="brand">
+      <span class="brand-badge">3D SIMULATOR</span>
+      <h1>랜덤 차트 매매 시뮬레이터</h1>
+      <span class="fee-badge">테이커 수수료 0.02%</span>
+    </div>
+
+    <div class="hud-stats num">
+      <div class="hud-item">
+        <span class="hud-label">총 시드머니 (수수료 반영)</span>
+        <span class="hud-val" id="hudSeed">1,000,000원</span>
+      </div>
+      <div class="hud-divider"></div>
+      <div class="hud-item">
+        <span class="hud-label">이번 3일 순손익 (수수료 차감)</span>
+        <span class="hud-val" id="hudRoundPnl">0원 (0건)</span>
+      </div>
+      <div class="hud-divider"></div>
+      <div class="hud-item">
+        <span class="hud-label">이번 3일 누적 수수료</span>
+        <span class="hud-val text-amber" id="hudRoundFees">0원</span>
+      </div>
+      <div class="hud-divider"></div>
+      <div class="hud-item">
+        <span class="hud-label">누적 승률 (승/패)</span>
+        <span class="hud-val" id="hudWinRate">0.0% (0승 0패)</span>
+      </div>
+      <button class="btn" id="btnResetStats" title="누적 통계 및 시드 초기화" style="padding: 6px 10px; font-size: 12px;">기록 초기화</button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="workspace">
+    <!-- Left: Interactive Chart -->
+    <section class="chart-section">
+      <div class="chart-toolbar">
+        <div class="toolbar-group">
+          <div class="tf-switch">
+            <button class="tf-btn active" id="tf15m" onclick="setTimeframe('15m')">15분봉</button>
+            <button class="tf-btn" id="tf1h" onclick="setTimeframe('1h')">1시간봉</button>
+          </div>
+          <button class="toggle-chip active" id="toggleAnchor" onclick="toggleOption('anchor')">1,000원 시가선</button>
+          <button class="toggle-chip active" id="toggleMA" onclick="toggleOption('ma')">이평선 (20 / 60)</button>
+          <button class="toggle-chip active" id="toggleDays" onclick="toggleOption('days')">일차 구분선</button>
+        </div>
+
+        <div class="toolbar-group">
+          <!-- Chart Zoom & Pan Controls -->
+          <div class="zoom-group num" title="마우스 휠로 확대/축소, 드래그로 좌우 이동">
+            <button class="zoom-btn" onclick="zoomChart(0.75)" title="차트 확대 (+)">+</button>
+            <span class="zoom-indicator" id="zoomStatusLabel">전체 보기</span>
+            <button class="zoom-btn" onclick="zoomChart(1.33)" title="차트 축소 (-)">−</button>
+            <button class="zoom-btn" onclick="resetZoom()" style="font-size: 11px; font-weight: 600; color: #93c5fd;" title="전체 맞춤">맞춤</button>
+          </div>
+          <button class="btn" style="padding: 6px 11px; font-size: 12.5px;" onclick="startNewRound()">새 차트</button>
+        </div>
+      </div>
+
+      <div class="price-banner num">
+        <div class="current-price-box">
+          <span class="current-price" id="livePrice">1,000.00원</span>
+          <span id="liveChangeFromStart" style="font-weight: 700; font-size: 13px;">(0.00%)</span>
+          <span class="anchor-badge">3일 기준 시가: 1,000.00원 고정</span>
+        </div>
+
+        <div class="ohlc-readout" id="ohlcReadout">
+          <span>시<b id="hoverO">-</b></span>
+          <span>고<b id="hoverH">-</b></span>
+          <span>저<b id="hoverL">-</b></span>
+          <span>종<b id="hoverC">-</b></span>
+        </div>
+      </div>
+
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <div class="chart-help-hint">휠: 확대/축소 · 드래그: 좌우 이동</div>
+        <div class="review-banner" id="reviewBanner">전체 3일(72시간) 복기 모드 — 새 차트를 눌러 다음 훈련을 시작하세요</div>
+        <div class="toast-msg" id="toastMsg"></div>
+        <canvas id="chartCanvas"></canvas>
+      </div>
+
+      <div class="playback-bar">
+        <div class="time-progress-wrap num">
+          <div class="time-labels">
+            <span id="timeElapsedLabel">1일차 02:00 경과</span>
+            <span id="candleCountLabel" style="color: var(--text-secondary);">8 / 288봉 (15분 기준)</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <div class="playback-controls">
+          <button class="btn btn-primary" id="btnStep15" onclick="advanceCandles(1)">+15분 (1봉)</button>
+          <button class="btn" id="btnStep60" onclick="advanceCandles(4)">+1시간 (4봉)</button>
+          <button class="btn" id="btnAutoPlay" onclick="toggleAutoPlay()">▶ 자동재생</button>
+          <button class="btn" id="btnSpeed" onclick="cycleSpeed()" style="min-width: 54px; justify-content: center;">1x</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Clean & Readable Position Order Panel -->
+    <aside class="order-section">
+      <div class="panel-title">
+        <span>포지션 주문</span>
+        <span style="font-size: 11px; color: var(--amber); font-weight: 600;">Taker 0.02% (오픈/클로즈)</span>
+      </div>
+
+      <!-- 1. Custom Leverage Selection (1x ~ 50x Arbitrary Input + Slider + Presets) -->
+      <div class="control-block">
+        <div class="block-header">
+          <span>① 레버리지 설정 (1x ~ 50x 임의 지정)</span>
+          <span class="highlight-val num" id="selectedLevText">5x</span>
+        </div>
+
+        <div class="lev-custom-row num">
+          <input
+            type="range"
+            id="levSlider"
+            class="lev-slider"
+            min="1"
+            max="50"
+            step="1"
+            value="5"
+            oninput="selectLeverage(this.value)"
+          />
+          <div class="lev-input-wrap">
+            <input
+              type="number"
+              id="levNumberInput"
+              class="lev-number-input num"
+              min="1"
+              max="50"
+              step="1"
+              value="5"
+              oninput="handleLevInput(this.value)"
+              onblur="finalizeLevInput(this.value)"
+            />
+            <span class="lev-unit">x</span>
+          </div>
+        </div>
+
+        <div class="pill-grid-6 num" id="leverageGroup">
+          <button class="select-pill" data-lev="1" onclick="selectLeverage(1)">1x</button>
+          <button class="select-pill" data-lev="3" onclick="selectLeverage(3)">3x</button>
+          <button class="select-pill active" data-lev="5" onclick="selectLeverage(5)">5x</button>
+          <button class="select-pill" data-lev="10" onclick="selectLeverage(10)">10x</button>
+          <button class="select-pill" data-lev="25" onclick="selectLeverage(25)">25x</button>
+          <button class="select-pill" data-lev="50" onclick="selectLeverage(50)">50x</button>
+        </div>
+      </div>
+
+      <!-- 2. Position Weight / Allocation Selection (Based on Total Seed) -->
+      <div class="control-block">
+        <div class="block-header">
+          <span id="allocBlockTitle">② 오픈 비중 선택 (총시드 기준)</span>
+          <span class="highlight-val num" id="selectedAllocText">25%</span>
+        </div>
+        <div class="pill-grid-4 num" id="allocGroup">
+          <button class="select-pill" data-alloc="10" onclick="selectAllocation(10)">10%</button>
+          <button class="select-pill active" data-alloc="25" onclick="selectAllocation(25)">25%</button>
+          <button class="select-pill" data-alloc="50" onclick="selectAllocation(50)">50%</button>
+          <button class="select-pill" data-alloc="100" onclick="selectAllocation(100)">100%</button>
+        </div>
+        <div class="margin-preview num">
+          <div class="margin-preview-row">
+            <span id="previewMarginLabel">투입 증거금 (총시드 25%):</span>
+            <b id="previewMargin">250,000원</b>
+          </div>
+          <div class="margin-preview-row">
+            <span id="previewSecondLabel">총 주문 규모:</span>
+            <b id="previewSecondVal">1,250,000원</b>
+          </div>
+          <div class="margin-preview-row">
+            <span>예상 오픈 테이커 수수료 (0.02%):</span>
+            <b class="text-amber" id="previewOpenFee">-250원</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Long / Short Open (Supports Additional Scale-In from Total Seed) -->
+      <div class="control-block">
+        <div class="block-header">
+          <span id="openBlockTitle">③ 롱 / 숏 오픈</span>
+        </div>
+        <div class="open-buttons">
+          <button class="btn-open-long" id="btnOpenLong" onclick="handleOrderClick('LONG')">
+            <span id="btnLongTitle">롱 오픈 (LONG)</span>
+            <span class="btn-subtext" id="btnLongSub">총시드 25% 매수 진입</span>
+          </button>
+          <button class="btn-open-short" id="btnOpenShort" onclick="handleOrderClick('SHORT')">
+            <span id="btnShortTitle">숏 오픈 (SHORT)</span>
+            <span class="btn-subtext" id="btnShortSub">총시드 25% 매도 진입</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. Current Long/Short Position (With Partial/Full Close Weight Selector & Net PnL after Fees) -->
+      <div class="control-block" style="flex: 1;">
+        <div class="block-header">
+          <span>④ 현재 롱/숏 포지션</span>
+          <span class="num" id="posEntryCountBadge" style="font-size: 11.5px; color: #60a5fa; font-weight: 700;"></span>
+        </div>
+
+        <div class="position-box" id="positionBox">
+          <div class="empty-position" id="emptyPositionView">
+            보유 중인 포지션이 없습니다.<br />
+            오픈·클로즈 체결 시 포지션 규모의 <strong style="color: var(--amber);">0.02%</strong>가<br />
+            테이커 수수료로 시드에서 자동 차감됩니다.
+          </div>
+
+          <div id="activePositionView" style="display: none; flex-direction: column; gap: 8px; height: 100%; justify-content: space-between;">
+            <div class="pos-header">
+              <span class="pos-badge long num" id="posSideBadge">LONG 5x</span>
+              <span class="num" style="font-size: 11.5px; color: var(--text-secondary);" id="posAllocBadge">총시드 25% · 250,000원</span>
+            </div>
+
+            <div class="pos-pnl-hero num">
+              <div class="pos-pnl-label">순 평가손익 (오픈·예상청산 수수료 반영)</div>
+              <div class="pos-pnl-amount" id="posUnrealizedPnl">-500원</div>
+              <div class="pos-pnl-roe" id="posUnrealizedRoe">(-0.20%)</div>
+            </div>
+
+            <div class="pos-grid num">
+              <div class="pos-stat">
+                <span>평단가 (평균 진입가)</span>
+                <b id="posEntryPrice">1,000.00원</b>
+              </div>
+              <div class="pos-stat">
+                <span>현재가</span>
+                <b id="posCurrentPrice">1,000.00원</b>
+              </div>
+              <div class="pos-stat">
+                <span>예상 강제청산가</span>
+                <b id="posLiqPrice" class="text-amber">-</b>
+              </div>
+              <div class="pos-stat">
+                <span>지불된 오픈 수수료</span>
+                <b id="posPaidOpenFee" class="text-amber">250원</b>
+              </div>
+            </div>
+
+            <!-- Close Weight Selection -->
+            <div class="close-control-box num">
+              <div class="block-header" style="font-size: 12px;">
+                <span>청산 비중 선택 (보유 포지션 기준)</span>
+                <span class="highlight-val" id="selectedCloseAllocText" style="font-size: 12.5px;">100%</span>
+              </div>
+              <div class="pill-grid-4" id="closeAllocGroup">
+                <button class="select-pill close-pill" data-calloc="25" onclick="selectCloseAllocation(25)">25%</button>
+                <button class="select-pill close-pill" data-calloc="50" onclick="selectCloseAllocation(50)">50%</button>
+                <button class="select-pill close-pill" data-calloc="75" onclick="selectCloseAllocation(75)">75%</button>
+                <button class="select-pill close-pill active" data-calloc="100" onclick="selectCloseAllocation(100)">100%</button>
+              </div>
+              <div class="close-preview-line">
+                <span id="closePreviewFeeLabel">클로즈 수수료(0.02%): -250원</span>
+                <b id="closePreviewPnl">청산 순손익: -250원</b>
+              </div>
+              <button class="btn-close-pos" id="btnClosePos" onclick="closePosition('MANUAL', null, selectedCloseAllocation)">
+                포지션 전체 닫기 (100% 청산)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 3-Day Final Result & Summary Modal (Triggered ONLY after 3 Days / 72 Hours) -->
+  <div class="modal-backdrop" id="summaryModal">
+    <div class="modal-card">
+      <div class="modal-top">
+        <h2 style="font-size: 17px; font-weight: 800;">3일(72시간) 최종 매매 결과 요약</h2>
+        <span class="modal-reason-tag" id="modalReasonTag">3일 경과 완료</span>
+      </div>
+
+      <div class="modal-result-box num">
+        <div style="font-size: 12px; color: var(--text-secondary);" id="modalSubtitle">3일간 최종 순손익 (수수료 차감 후)</div>
+        <div class="modal-pnl" id="modalPnl">+0원</div>
+        <div style="font-size: 13px; font-weight: 700;" id="modalRoe">라운드 시작 시드 대비 수익률: 0.00%</div>
+      </div>
+
+      <div class="summary-table num" id="modalSummaryTable">
+        <div class="summary-row">
+          <span>3일간 총 청산 횟수 (승 / 패)</span>
+          <b id="sumTradeCount">-</b>
+        </div>
+        <div class="summary-row">
+          <span>총 가격 변동 손익 (수수료 차감 전)</span>
+          <b id="sumGrossPnl">-</b>
+        </div>
+        <div class="summary-row">
+          <span>3일간 총 지불 수수료 (오픈 + 클로즈)</span>
+          <b class="text-amber" id="sumTotalFees">-</b>
+        </div>
+        <div class="summary-row">
+          <span>3일 시가 → 3일 최종 종가</span>
+          <b id="sumPrices">-</b>
+        </div>
+        <div class="summary-row">
+          <span>시드머니 변화 (시작 → 종료)</span>
+          <b id="sumSeedChange">-</b>
+        </div>
+      </div>
+
+      <!-- Execution History List for the 3-Day Session -->
+      <div class="trade-log-box num" id="modalTradeLogBox">
+        <div class="trade-log-title">
+          <span>3일간 매매 청산 내역 (순손익 / 수수료)</span>
+          <span id="modalLogCount">총 0건</span>
+        </div>
+        <div class="trade-log-list" id="modalTradeLogList"></div>
+      </div>
+
+      <div class="coach-note" id="modalCoachNote">
+        매매 복기 코멘트가 여기에 표시됩니다.
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" style="justify-content: center; padding: 11px;" onclick="enterReviewMode()">전체 3일 차트 복기하기</button>
+        <button class="btn btn-primary" style="justify-content: center; padding: 11px;" onclick="startNewRound()">새 랜덤 차트 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Constants: 3 Days = 72 Hours = 288 x 15-minute candles, Base Open Price = 1,000.00 KRW, Taker Fee = 0.02%
+    const TOTAL_15M_CANDLES = 288;
+    const INITIAL_REVEALED = 8; // First 2 hours (8 x 15m) shown at start
+    const INITIAL_SEED = 1000000;
+    const BASE_OPEN_PRICE = 1000.00;
+    const TAKER_FEE_RATE = 0.0002; // 0.02% per open and per close on notional value
+    const STORAGE_KEY = 'sim_3d_random_chart_v5_fee';
+
+    // Persistent Overall User Stats
+    let stats = loadStats();
+
+    // Current 3-Day Round State
+    let candles15m = [];
+    let revealedCount = INITIAL_REVEALED;
+    let timeframe = '15m'; // '15m' | '1h'
+    let showOptions = { anchor: true, ma: true, days: true };
+    let selectedLeverage = 5;
+    let selectedAllocation = 25; // Open allocation (% of total seed)
+    let selectedCloseAllocation = 100; // Close allocation (% of current position)
+    let position = null;
+    let roundStartSeed = INITIAL_SEED;
+    let roundTotalFees = 0;
+    let roundTrades = [];
+    let chartMarkers = [];
+    let isReviewMode = false;
+    let roundFinished = false;
+
+    // Chart Zoom & Pan Viewport State
+    let visibleCandleLimit = null;
+    let viewEndOffset = 0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartOffset = 0;
+
+    // Auto-play State
+    let autoPlayTimer = null;
+    let speedMultiplier = 1; // 1x, 3x, 10x
+    let toastTimer = null;
+
+    // Hover State
+    let hoverVisibleIdx = -1;
+
+    function loadStats() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed.seed === 'number' && parsed.seed > 0) return parsed;
+        }
+      } catch (e) {}
+      return {
+        seed: INITIAL_SEED,
+        wins: 0,
+        losses: 0,
+        totalWinPnl: 0,
+        totalLossPnl: 0,
+        totalFeesPaid: 0
+      };
+    }
+
+    function saveStats() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+      } catch (e) {}
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById('toastMsg');
+      el.textContent = msg;
+      el.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.classList.remove('show');
+      }, 2800);
+    }
+
+    // Generate Realistic 3-Day (288 x 15m) Price Series with Strict 1,000.00 Open
+    function generate3DayCandles() {
+      const data = [];
+      let prevClose = BASE_OPEN_PRICE;
+
+      const regimes = [
+        { name: 'uptrend', drifts: [0.0005, 0.0007, 0.0004], vol: 0.0065 },
+        { name: 'downtrend', drifts: [-0.0005, -0.0006, -0.0003], vol: 0.0065 },
+        { name: 'v_reversal', drifts: [-0.0008, 0.0002, 0.0010], vol: 0.0075 },
+        { name: 'inv_v_reversal', drifts: [0.0009, 0.0001, -0.0009], vol: 0.0075 },
+        { name: 'range_breakout', drifts: [0.0000, 0.0000, 0.0011], vol: 0.0055 },
+        { name: 'choppy_range', drifts: [0.0002, -0.0002, 0.0001], vol: 0.0060 }
+      ];
+      const chosen = regimes[Math.floor(Math.random() * regimes.length)];
+
+      for (let i = 0; i < TOTAL_15M_CANDLES; i++) {
+        const dayIdx = Math.floor(i / 96);
+        const hourOfDay = Math.floor((i % 96) / 4);
+
+        const open = i === 0 ? BASE_OPEN_PRICE : prevClose;
+
+        const sessionVolBoost = (hourOfDay >= 0 && hourOfDay <= 3) || (hourOfDay >= 14 && hourOfDay <= 18) ? 1.25 : 0.9;
+        const vol = chosen.vol * sessionVolBoost;
+
+        const u1 = Math.max(1e-7, Math.random());
+        const u2 = Math.random();
+        const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+
+        const spike = Math.random() < 0.05 ? (Math.random() < 0.5 ? 1.8 : -1.8) * vol : 0;
+
+        const pctMove = chosen.drifts[dayIdx] + z * vol + spike;
+        let close = open * (1 + pctMove);
+        close = Math.max(100.00, Number(close.toFixed(2)));
+
+        const wickUpPct = Math.abs(Math.random() * vol * 0.85);
+        const wickDownPct = Math.abs(Math.random() * vol * 0.85);
+        const high = Number((Math.max(open, close) * (1 + wickUpPct)).toFixed(2));
+        const low = Math.max(100.00, Number((Math.min(open, close) * (1 - wickDownPct)).toFixed(2)));
+
+        data.push({
+          index: i,
+          day: dayIdx + 1,
+          hour: hourOfDay,
+          minute: (i % 4) * 15,
+          open,
+          high,
+          low,
+          close
+        });
+
+        prevClose = close;
+      }
+      return data;
+    }
+
+    // Aggregate 15m candles into 1h candles up to revealedCount
+    function getActiveCandles() {
+      const visible15m = candles15m.slice(0, revealedCount);
+      if (timeframe === '15m') {
+        return visible15m.map(c => ({
+          ...c,
+          label: `${c.day}일차 ${String(c.hour).padStart(2, '0')}:${String(c.minute).padStart(2, '0')}`
+        }));
+      }
+
+      const candles1h = [];
+      for (let i = 0; i < visible15m.length; i += 4) {
+        const chunk = visible15m.slice(i, i + 4);
+        const first = chunk[0];
+        const last = chunk[chunk.length - 1];
+        let high = -Infinity;
+        let low = Infinity;
+        for (const item of chunk) {
+          if (item.high > high) high = item.high;
+          if (item.low < low) low = item.low;
+        }
+        candles1h.push({
+          index: Math.floor(i / 4),
+          day: first.day,
+          hour: first.hour,
+          minute: 0,
+          open: first.open,
+          high,
+          low,
+          close: last.close,
+          label: `${first.day}일차 ${String(first.hour).padStart(2, '0')}:00 (1H)`
+        });
+      }
+      return candles1h;
+    }
+
+    function calculateSMA(candles, period) {
+      const result = new Array(candles.length).fill(null);
+      let sum = 0;
+      for (let i = 0; i < candles.length; i++) {
+        sum += candles[i].close;
+        if (i >= period) {
+          sum -= candles[i - period].close;
+        }
+        if (i >= period - 1) {
+          result[i] = sum / period;
+        }
+      }
+      return result;
+    }
+
+    function getCurrentCandle() {
+      return candles15m[revealedCount - 1];
+    }
+
+    function getCurrentPrice() {
+      return getCurrentCandle().close;
+    }
+
+    function formatWon(val) {
+      const rounded = Math.round(val);
+      return rounded.toLocaleString('ko-KR') + '원';
+    }
+
+    function formatPrice(val) {
+      return val.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '원';
+    }
+
+    function formatAxisPrice(val) {
+      return val.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatTimeShort(candleCount) {
+      const totalMins = candleCount * 15;
+      const day = Math.min(3, Math.floor(totalMins / 1440) + 1);
+      const remMins = totalMins % 1440;
+      const hrs = Math.floor(remMins / 60);
+      const mins = remMins % 60;
+      if (candleCount >= TOTAL_15M_CANDLES) return '3일차 24:00';
+      return `${day}일차 ${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    }
+
+    function formatElapsed(candleCount) {
+      if (candleCount >= TOTAL_15M_CANDLES) {
+        return '3일차 24:00 (72시간 완료)';
+      }
+      return `${formatTimeShort(candleCount)} 경과`;
+    }
+
+    // Zoom & Pan Helper Logic
+    function getViewportRange(totalCount) {
+      if (totalCount === 0) return { startIdx: 0, endIdx: 0, count: 0 };
+
+      const effectiveCount = visibleCandleLimit === null
+        ? totalCount
+        : Math.max(8, Math.min(totalCount, visibleCandleLimit));
+
+      const maxOffset = Math.max(0, totalCount - effectiveCount);
+      viewEndOffset = Math.max(0, Math.min(maxOffset, viewEndOffset));
+
+      const endIdx = totalCount - viewEndOffset;
+      const startIdx = Math.max(0, endIdx - effectiveCount);
+
+      return { startIdx, endIdx, count: endIdx - startIdx };
+    }
+
+    function zoomChart(factor) {
+      const candles = getActiveCandles();
+      const total = candles.length;
+      if (total <= 8) {
+        visibleCandleLimit = null;
+        viewEndOffset = 0;
+        updateZoomLabel(total);
+        drawChart();
+        return;
+      }
+
+      const currentCount = visibleCandleLimit === null ? total : Math.min(total, visibleCandleLimit);
+      let nextCount = Math.round(currentCount * factor);
+      if (nextCount === currentCount) {
+        nextCount += factor < 1 ? -2 : 2;
+      }
+
+      if (nextCount >= total) {
+        visibleCandleLimit = null;
+        viewEndOffset = 0;
+      } else {
+        visibleCandleLimit = Math.max(8, nextCount);
+      }
+
+      updateZoomLabel(total);
+      drawChart();
+    }
+
+    function resetZoom() {
+      visibleCandleLimit = null;
+      viewEndOffset = 0;
+      const total = getActiveCandles().length;
+      updateZoomLabel(total);
+      drawChart();
+    }
+
+    function updateZoomLabel(totalCount) {
+      const labelEl = document.getElementById('zoomStatusLabel');
+      if (visibleCandleLimit === null || visibleCandleLimit >= totalCount) {
+        labelEl.textContent = '전체 보기';
+      } else {
+        labelEl.textContent = `${visibleCandleLimit}봉 보기`;
+      }
+    }
+
+    // Calculate Available & Requested Margin based on Total Seed (Accounting for 0.02% Open Taker Fee)
+    function getOrderSizing() {
+      const totalSeed = stats.seed;
+      const usedMargin = position ? position.margin : 0;
+      const freeSeed = Math.max(0, totalSeed - usedMargin);
+
+      // When 100% of freeSeed is requested, ensure margin + openFee <= freeSeed
+      const maxAffordableMargin = Math.floor(freeSeed / (1 + selectedLeverage * TAKER_FEE_RATE));
+      const requestedMargin = Math.floor(totalSeed * (selectedAllocation / 100));
+      const actualMargin = Math.max(0, Math.min(requestedMargin, maxAffordableMargin));
+      const openNotional = actualMargin * selectedLeverage;
+      const openFee = Math.round(openNotional * TAKER_FEE_RATE);
+
+      const effectivePctOfTotal = totalSeed > 0 ? (actualMargin / totalSeed) * 100 : 0;
+      const isCapped = requestedMargin > maxAffordableMargin && maxAffordableMargin > 0;
+
+      return {
+        totalSeed,
+        usedMargin,
+        freeSeed,
+        maxAffordableMargin,
+        requestedMargin,
+        actualMargin,
+        openNotional,
+        openFee,
+        effectivePctOfTotal,
+        isCapped
+      };
+    }
+
+    // UI Controls
+    function setTimeframe(tf) {
+      if (timeframe === tf) return;
+      if (visibleCandleLimit !== null) {
+        visibleCandleLimit = tf === '1h'
+          ? Math.max(8, Math.round(visibleCandleLimit / 4))
+          : Math.max(12, visibleCandleLimit * 4);
+        viewEndOffset = tf === '1h'
+          ? Math.floor(viewEndOffset / 4)
+          : viewEndOffset * 4;
+      }
+      timeframe = tf;
+      document.getElementById('tf15m').classList.toggle('active', tf === '15m');
+      document.getElementById('tf1h').classList.toggle('active', tf === '1h');
+      hoverVisibleIdx = -1;
+      updateZoomLabel(getActiveCandles().length);
+      drawChart();
+    }
+
+    function toggleOption(key) {
+      showOptions[key] = !showOptions[key];
+      const map = { anchor: 'toggleAnchor', ma: 'toggleMA', days: 'toggleDays' };
+      document.getElementById(map[key]).classList.toggle('active', showOptions[key]);
+      drawChart();
+    }
+
+    function selectLeverage(lev) {
+      const parsed = parseInt(lev, 10);
+      const clamped = isNaN(parsed) ? 1 : Math.max(1, Math.min(50, parsed));
+      selectedLeverage = clamped;
+
+      document.getElementById('selectedLevText').textContent = `${clamped}x`;
+      document.getElementById('levSlider').value = clamped;
+      document.getElementById('levNumberInput').value = clamped;
+
+      document.querySelectorAll('#leverageGroup .select-pill').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.lev) === clamped);
+      });
+      updateUI();
+    }
+
+    function handleLevInput(rawVal) {
+      if (rawVal === '') return;
+      const parsed = parseInt(rawVal, 10);
+      if (isNaN(parsed)) return;
+      const clamped = Math.max(1, Math.min(50, parsed));
+      selectedLeverage = clamped;
+
+      document.getElementById('selectedLevText').textContent = `${clamped}x`;
+      document.getElementById('levSlider').value = clamped;
+      if (parsed > 50 || parsed < 1) {
+        document.getElementById('levNumberInput').value = clamped;
+      }
+
+      document.querySelectorAll('#leverageGroup .select-pill').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.lev) === clamped);
+      });
+      updateUI();
+    }
+
+    function finalizeLevInput(rawVal) {
+      selectLeverage(rawVal);
+    }
+
+    function selectAllocation(alloc) {
+      selectedAllocation = alloc;
+      document.getElementById('selectedAllocText').textContent = `${alloc}%`;
+      document.querySelectorAll('#allocGroup .select-pill').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.alloc) === alloc);
+      });
+      updateUI();
+    }
+
+    function selectCloseAllocation(calloc) {
+      selectedCloseAllocation = calloc;
+      document.getElementById('selectedCloseAllocText').textContent = `${calloc}%`;
+      document.querySelectorAll('#closeAllocGroup .select-pill').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.calloc) === calloc);
+      });
+      updateUI();
+    }
+
+    // Handle Initial Open OR Additional Scale-In Open (Deducts 0.02% Taker Open Fee Immediately)
+    function handleOrderClick(side) {
+      if (roundFinished || isReviewMode) return;
+      if (revealedCount >= TOTAL_15M_CANDLES) return;
+
+      if (position && position.side !== side) {
+        showToast(`현재 ${position.side} 포지션 보유 중입니다. 100% 청산 후 반대 포지션 진입이 가능합니다.`);
+        return;
+      }
+
+      const sizing = getOrderSizing();
+      if (sizing.actualMargin < 1000) {
+        showToast('오픈 수수료(0.02%)를 포함해 추가 진입할 수 있는 잔여 시드가 부족합니다.');
+        return;
+      }
+
+      const currentPrice = getCurrentPrice();
+      const addedMargin = sizing.actualMargin;
+      const addedNotional = sizing.openNotional;
+      const addedQty = addedNotional / currentPrice;
+      const openFee = sizing.openFee;
+
+      // Deduct 0.02% Taker Open Fee from Total Seed immediately
+      stats.seed = Math.max(1000, Math.round(stats.seed - openFee));
+      stats.totalFeesPaid = (stats.totalFeesPaid || 0) + openFee;
+      roundTotalFees += openFee;
+      saveStats();
+
+      if (!position) {
+        const liqMove = 0.90 / selectedLeverage;
+        const liqPrice = selectedLeverage === 1
+          ? (side === 'LONG' ? 0 : Infinity)
+          : (side === 'LONG'
+            ? Number((currentPrice * (1 - liqMove)).toFixed(2))
+            : Number((currentPrice * (1 + liqMove)).toFixed(2)));
+
+        position = {
+          side,
+          margin: addedMargin,
+          notional: addedNotional,
+          qty: addedQty,
+          effectiveLeverage: selectedLeverage,
+          avgEntryPrice: currentPrice,
+          firstEntryIndex: revealedCount,
+          liqPrice,
+          paidOpenFee: openFee,
+          mfeRoe: 0,
+          maeRoe: 0,
+          entryCount: 1
+        };
+
+        chartMarkers.push({
+          type: 'OPEN',
+          side,
+          price: currentPrice,
+          candleIndex15m: revealedCount - 1
+        });
+
+        showToast(`${side} ${selectedLeverage}x 오픈 (${formatWon(addedMargin)}) · 오픈 수수료 -${formatWon(openFee)}`);
+      } else {
+        const newTotalMargin = position.margin + addedMargin;
+        const newTotalNotional = position.notional + addedNotional;
+        const newTotalQty = position.qty + addedQty;
+        const newAvgEntry = newTotalNotional / newTotalQty;
+        const newEffectiveLev = newTotalNotional / newTotalMargin;
+
+        const liqMove = 0.90 / newEffectiveLev;
+        const newLiqPrice = newEffectiveLev <= 1.0001
+          ? (side === 'LONG' ? 0 : Infinity)
+          : (side === 'LONG'
+            ? Number((newAvgEntry * (1 - liqMove)).toFixed(2))
+            : Number((newAvgEntry * (1 + liqMove)).toFixed(2)));
+
+        position.margin = newTotalMargin;
+        position.notional = newTotalNotional;
+        position.qty = newTotalQty;
+        position.effectiveLeverage = newEffectiveLev;
+        position.avgEntryPrice = newAvgEntry;
+        position.liqPrice = newLiqPrice;
+        position.paidOpenFee += openFee;
+        position.entryCount += 1;
+
+        chartMarkers.push({
+          type: 'ADD',
+          side,
+          price: currentPrice,
+          candleIndex15m: revealedCount - 1
+        });
+
+        showToast(`${side} ${position.entryCount}차 추가 오픈 (+${formatWon(addedMargin)}) · 평단가 ${formatPrice(newAvgEntry)} · 수수료 -${formatWon(openFee)}`);
+      }
+
+      updateUI();
+      drawChart();
+    }
+
+    // Calculate Position Gross PnL, Close Fee, and Net PnL at a given price
+    function calcPositionMetrics(pos, price) {
+      const rawPct = pos.side === 'LONG'
+        ? (price - pos.avgEntryPrice) / pos.avgEntryPrice
+        : (pos.avgEntryPrice - price) / pos.avgEntryPrice;
+      const grossPnl = pos.notional * rawPct;
+      const exitNotional = pos.qty * price;
+      const estCloseFee = Math.round(exitNotional * TAKER_FEE_RATE);
+      const netPnl = grossPnl - pos.paidOpenFee - estCloseFee;
+      const netRoePct = pos.margin > 0 ? (netPnl / pos.margin) * 100 : 0;
+      return { rawPct, grossPnl, estCloseFee, netPnl, netRoePct };
+    }
+
+    // Close Position (Partial or Full) — Deducts 0.02% Taker Close Fee on Closed Notional
+    function closePosition(reason, forcedExitPrice = null, closePct = 100) {
+      if (!position) return;
+
+      const exitPrice = forcedExitPrice !== null ? forcedExitPrice : getCurrentPrice();
+      const effectiveClosePct = (reason === 'LIQUIDATED' || reason === 'EXPIRED_3D') ? 100 : closePct;
+      const ratio = effectiveClosePct / 100;
+
+      const remainingAfter = position.margin * (1 - ratio);
+      const isFullClose = effectiveClosePct >= 100 || remainingAfter < 1000;
+      const actualRatio = isFullClose ? 1 : ratio;
+      const actualClosePctLabel = isFullClose ? 100 : effectiveClosePct;
+
+      const closedMargin = isFullClose ? position.margin : Math.round(position.margin * actualRatio);
+      const closedNotional = isFullClose ? position.notional : position.notional * actualRatio;
+      const closedQty = isFullClose ? position.qty : position.qty * actualRatio;
+      const allocatedOpenFee = isFullClose ? position.paidOpenFee : Math.round(position.paidOpenFee * actualRatio);
+
+      const rawPct = position.side === 'LONG'
+        ? (exitPrice - position.avgEntryPrice) / position.avgEntryPrice
+        : (position.avgEntryPrice - exitPrice) / position.avgEntryPrice;
+
+      let grossPnl = closedNotional * rawPct;
+      const exitNotional = closedQty * exitPrice;
+      let closeFee = reason === 'LIQUIDATED' ? 0 : Math.round(exitNotional * TAKER_FEE_RATE);
+
+      if (reason === 'LIQUIDATED') {
+        grossPnl = -closedMargin;
+        closeFee = 0;
+      } else if (grossPnl - closeFee < -closedMargin) {
+        grossPnl = -closedMargin + closeFee;
+      }
+
+      // Cash settled at close = grossPnl - closeFee (openFee was already deducted when opened)
+      const closeSettlement = grossPnl - closeFee;
+      // Total net PnL for this trade slice = grossPnl - allocatedOpenFee - closeFee
+      const netTradePnl = grossPnl - allocatedOpenFee - closeFee;
+      const netRoePct = closedMargin > 0 ? (netTradePnl / closedMargin) * 100 : 0;
+
+      const heldCandles = Math.max(1, revealedCount - position.firstEntryIndex);
+      const heldMinutes = heldCandles * 15;
+
+      // Update Total Seed with close settlement (grossPnl - closeFee)
+      stats.seed = Math.max(1000, Math.round(stats.seed + closeSettlement));
+      stats.totalFeesPaid = (stats.totalFeesPaid || 0) + closeFee;
+      roundTotalFees += closeFee;
+
+      if (netTradePnl > 0) {
+        stats.wins += 1;
+        stats.totalWinPnl += netTradePnl;
+      } else if (netTradePnl < 0) {
+        stats.losses += 1;
+        stats.totalLossPnl += Math.abs(netTradePnl);
+      }
+      saveStats();
+
+      roundTrades.push({
+        tradeNo: roundTrades.length + 1,
+        side: position.side,
+        closePct: actualClosePctLabel,
+        isPartial: !isFullClose,
+        avgEntryPrice: position.avgEntryPrice,
+        exitPrice,
+        closedMargin,
+        effectiveLeverage: position.effectiveLeverage,
+        grossPnl,
+        openFee: allocatedOpenFee,
+        closeFee,
+        totalFee: allocatedOpenFee + closeFee,
+        netPnl: netTradePnl,
+        roePct: netRoePct,
+        heldMinutes,
+        timeLabel: formatTimeShort(revealedCount),
+        reason: reason === 'MANUAL' ? (isFullClose ? 'FULL_CLOSE' : 'PARTIAL_CLOSE') : reason
+      });
+
+      chartMarkers.push({
+        type: reason === 'LIQUIDATED' ? 'LIQ' : (isFullClose ? 'CLOSE' : 'PARTIAL'),
+        side: position.side,
+        price: exitPrice,
+        candleIndex15m: revealedCount - 1
+      });
+
+      const closedSide = position.side;
+
+      if (isFullClose) {
+        position = null;
+        if (reason === 'MANUAL') {
+          const sign = netTradePnl >= 0 ? '+' : '';
+          showToast(`${closedSide} 100% 청산 · 순손익 ${sign}${formatWon(netTradePnl)} (왕복 수수료 -${formatWon(allocatedOpenFee + closeFee)})`);
+        } else if (reason === 'LIQUIDATED') {
+          showToast(`[강제 청산] ${closedSide} 청산가 도달 (-${formatWon(closedMargin)})`);
+        }
+      } else {
+        position.margin = Math.max(0, position.margin - closedMargin);
+        position.notional = Math.max(0, position.notional - closedNotional);
+        position.qty = Math.max(0, position.qty - closedQty);
+        position.paidOpenFee = Math.max(0, position.paidOpenFee - allocatedOpenFee);
+
+        const sign = netTradePnl >= 0 ? '+' : '';
+        showToast(`${closedSide} ${actualClosePctLabel}% 부분 청산 · 순손익 ${sign}${formatWon(netTradePnl)} (수수료 -${formatWon(allocatedOpenFee + closeFee)})`);
+      }
+
+      updateUI();
+      drawChart();
+    }
+
+    // Advance 15m candles
+    function advanceCandles(step) {
+      if (isReviewMode || roundFinished) return;
+
+      for (let s = 0; s < step; s++) {
+        if (revealedCount >= TOTAL_15M_CANDLES) break;
+        revealedCount += 1;
+        const candle = getCurrentCandle();
+
+        if (position) {
+          const bestPrice = position.side === 'LONG' ? candle.high : candle.low;
+          const worstPrice = position.side === 'LONG' ? candle.low : candle.high;
+
+          const bestMetrics = calcPositionMetrics(position, bestPrice);
+          const worstMetrics = calcPositionMetrics(position, worstPrice);
+
+          if (bestMetrics.netRoePct > position.mfeRoe) position.mfeRoe = bestMetrics.netRoePct;
+          if (worstMetrics.netRoePct < position.maeRoe) position.maeRoe = worstMetrics.netRoePct;
+
+          if (position.effectiveLeverage > 1.0001) {
+            if (position.side === 'LONG' && candle.low <= position.liqPrice) {
+              closePosition('LIQUIDATED', position.liqPrice, 100);
+            } else if (position.side === 'SHORT' && candle.high >= position.liqPrice) {
+              closePosition('LIQUIDATED', position.liqPrice, 100);
+            }
+          }
+        }
+
+        // ONLY when 3 Days (288 x 15m candles = 72 hours) have completely elapsed:
+        if (revealedCount >= TOTAL_15M_CANDLES) {
+          stopAutoPlay();
+          if (position) {
+            closePosition('EXPIRED_3D', candle.close, 100);
+          }
+          roundFinished = true;
+          updateUI();
+          drawChart();
+          show3DayFinalSummaryModal();
+          return;
+        }
+      }
+
+      updateUI();
+      drawChart();
+    }
+
+    function toggleAutoPlay() {
+      if (autoPlayTimer) {
+        stopAutoPlay();
+      } else {
+        if (isReviewMode || roundFinished) return;
+        const intervalMs = Math.max(90, Math.floor(650 / speedMultiplier));
+        autoPlayTimer = setInterval(() => advanceCandles(1), intervalMs);
+        const btn = document.getElementById('btnAutoPlay');
+        btn.textContent = '⏸ 일시정지';
+        btn.classList.add('btn-play-active');
+      }
+    }
+
+    function stopAutoPlay() {
+      if (autoPlayTimer) {
+        clearInterval(autoPlayTimer);
+        autoPlayTimer = null;
+      }
+      const btn = document.getElementById('btnAutoPlay');
+      btn.textContent = '▶ 자동재생';
+      btn.classList.remove('btn-play-active');
+    }
+
+    function cycleSpeed() {
+      const speeds = [1, 3, 10];
+      const nextIdx = (speeds.indexOf(speedMultiplier) + 1) % speeds.length;
+      speedMultiplier = speeds[nextIdx];
+      document.getElementById('btnSpeed').textContent = `${speedMultiplier}x`;
+      if (autoPlayTimer) {
+        stopAutoPlay();
+        toggleAutoPlay();
+      }
+    }
+
+    // Show Final 3-Day Summary Modal (Triggered ONLY after 3 days pass)
+    function show3DayFinalSummaryModal() {
+      const totalNetPnl = stats.seed - roundStartSeed;
+      const totalGrossPnl = roundTrades.reduce((acc, t) => acc + t.grossPnl, 0);
+      const roundRoePct = roundStartSeed > 0 ? (totalNetPnl / roundStartSeed) * 100 : 0;
+      const winTrades = roundTrades.filter(t => t.netPnl > 0);
+      const lossTrades = roundTrades.filter(t => t.netPnl <= 0);
+
+      const tagEl = document.getElementById('modalReasonTag');
+      tagEl.textContent = '3일(72시간) 경과 완료';
+      tagEl.style.backgroundColor = 'var(--accent-bg)';
+      tagEl.style.color = '#60a5fa';
+
+      const pnlEl = document.getElementById('modalPnl');
+      const roeEl = document.getElementById('modalRoe');
+      const sign = totalNetPnl >= 0 ? '+' : '';
+      pnlEl.textContent = roundTrades.length === 0 ? '0원 (무포지션 관망)' : `${sign}${formatWon(totalNetPnl)}`;
+      pnlEl.className = `modal-pnl num ${totalNetPnl > 0 ? 'text-long' : totalNetPnl < 0 ? 'text-short' : ''}`;
+
+      roeEl.textContent = `라운드 시작 시드 대비 순수익률: ${sign}${roundRoePct.toFixed(2)}%`;
+      roeEl.className = `num ${totalNetPnl > 0 ? 'text-long' : totalNetPnl < 0 ? 'text-short' : ''}`;
+
+      document.getElementById('sumTradeCount').textContent = `${roundTrades.length}건 (${winTrades.length}승 ${lossTrades.length}패)`;
+
+      const gSign = totalGrossPnl >= 0 ? '+' : '';
+      const grossEl = document.getElementById('sumGrossPnl');
+      grossEl.textContent = `${gSign}${formatWon(totalGrossPnl)}`;
+      grossEl.className = totalGrossPnl >= 0 ? 'text-long' : 'text-short';
+
+      document.getElementById('sumTotalFees').textContent = `-${formatWon(roundTotalFees)} (건당 0.02% 기준)`;
+
+      const finalPrice = getCurrentPrice();
+      const priceDiff = (((finalPrice - BASE_OPEN_PRICE) / BASE_OPEN_PRICE) * 100).toFixed(2);
+      document.getElementById('sumPrices').textContent = `1,000.00원 → ${formatPrice(finalPrice)} (${priceDiff >= 0 ? '+' : ''}${priceDiff}%)`;
+      document.getElementById('sumSeedChange').textContent = `${formatWon(roundStartSeed)} → ${formatWon(stats.seed)}`;
+
+      // Render Trade History List
+      const logListEl = document.getElementById('modalTradeLogList');
+      document.getElementById('modalLogCount').textContent = `총 ${roundTrades.length}건`;
+      logListEl.innerHTML = '';
+
+      if (roundTrades.length === 0) {
+        logListEl.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 12px;">3일간 체결된 청산 내역이 없습니다.</div>';
+      } else {
+        for (const t of roundTrades) {
+          const item = document.createElement('div');
+          item.className = 'trade-log-item';
+          const sideClass = t.side === 'LONG' ? 'text-long' : 'text-short';
+          const pnlClass = t.netPnl >= 0 ? 'text-long' : 'text-short';
+          const tSign = t.netPnl >= 0 ? '+' : '';
+          const typeLabel = t.reason === 'LIQUIDATED'
+            ? '강제청산'
+            : t.reason === 'EXPIRED_3D'
+              ? '3일만기 100%'
+              : t.isPartial
+                ? `부분청산 ${t.closePct}%`
+                : '전체청산 100%';
+
+          item.innerHTML = `
+            <div>
+              <strong class="${sideClass}">#${t.tradeNo} ${t.side}</strong>
+              <span style="color: var(--text-secondary); margin-left: 4px;">[${typeLabel}]</span>
+              <div style="font-size: 11px; color: var(--text-muted);">${t.timeLabel} · ${formatAxisPrice(t.avgEntryPrice)} → ${formatAxisPrice(t.exitPrice)} · 수수료 -${formatWon(t.totalFee)}</div>
+            </div>
+            <div style="text-align: right;">
+              <strong class="${pnlClass}">${tSign}${formatWon(t.netPnl)}</strong>
+              <div style="font-size: 11px;" class="${pnlClass}">(${tSign}${t.roePct.toFixed(1)}%)</div>
+            </div>
+          `;
+          logListEl.appendChild(item);
+        }
+      }
+
+      let feedback = '';
+      if (roundTrades.length === 0) {
+        feedback = '<strong>[3일 관망 복기]</strong> 72시간 동안 불필요한 테이커 수수료(왕복 0.04%) 지출 없이 시드를 보존했습니다. 전체 차트 복기 모드를 눌러 1,000원 시가선과 1시간봉 추세 전환 지점을 점검해보세요.';
+      } else {
+        const liqCount = roundTrades.filter(t => t.reason === 'LIQUIDATED').length;
+        const feeRatioPct = roundStartSeed > 0 ? ((roundTotalFees / roundStartSeed) * 100).toFixed(2) : '0.00';
+        if (liqCount > 0) {
+          feedback = `<strong>[리스크 점검]</strong> 3일간 총 ${roundTrades.length}회 청산 중 <strong>${liqCount}회 강제 청산</strong>이 발생했고, 테이커 수수료로 총 <strong>${formatWon(roundTotalFees)}</strong>(${feeRatioPct}%)가 차감되었습니다. 고배율(20x~50x)에서는 포지션 규모가 커져 수수료 부담과 청산 위험이 급증합니다.`;
+        } else if (totalNetPnl > 0) {
+          feedback = `<strong>[3일 종합 분석]</strong> 총 ${roundTrades.length}회 매매에서 테이커 수수료 <strong>${formatWon(roundTotalFees)}</strong>를 모두 제하고도 <strong>+${formatWon(totalNetPnl)} (+${roundRoePct.toFixed(2)}%)</strong>의 순수익을 달성했습니다. 손익비가 확실한 자리만 골라 수수료 대비 기대값을 높인 전략이 유효했습니다.`;
+        } else {
+          feedback = `<strong>[3일 종합 분석]</strong> 총 ${roundTrades.length}회 매매 동안 테이커 수수료로 <strong>${formatWon(roundTotalFees)}</strong>(시드 대비 ${feeRatioPct}%)가 지출되었습니다. 고배율 단타 빈도가 높을수록 왕복 0.04% 수수료가 누적되므로 진입 횟수를 줄이고 손익비를 넓혀보세요.`;
+        }
+      }
+      document.getElementById('modalCoachNote').innerHTML = feedback;
+
+      document.getElementById('summaryModal').classList.add('show');
+    }
+
+    function enterReviewMode() {
+      document.getElementById('summaryModal').classList.remove('show');
+      isReviewMode = true;
+      revealedCount = TOTAL_15M_CANDLES;
+      resetZoom();
+      document.getElementById('reviewBanner').style.display = 'block';
+      updateUI();
+      drawChart();
+    }
+
+    function startNewRound() {
+      stopAutoPlay();
+      document.getElementById('summaryModal').classList.remove('show');
+      document.getElementById('reviewBanner').style.display = 'none';
+      candles15m = generate3DayCandles();
+      revealedCount = INITIAL_REVEALED;
+      position = null;
+      roundStartSeed = stats.seed;
+      roundTotalFees = 0;
+      roundTrades = [];
+      chartMarkers = [];
+      isReviewMode = false;
+      roundFinished = false;
+      visibleCandleLimit = null;
+      viewEndOffset = 0;
+      hoverVisibleIdx = -1;
+      updateZoomLabel(getActiveCandles().length);
+      updateUI();
+      drawChart();
+    }
+
+    // Update All HUD, Playback & Order Panel UI
+    function updateUI() {
+      document.getElementById('hudSeed').textContent = formatWon(stats.seed);
+
+      // Net PnL for this 3-day round including open fees of active position
+      const roundNetPnl = stats.seed - roundStartSeed;
+      const rSign = roundNetPnl > 0 ? '+' : '';
+      const roundPnlEl = document.getElementById('hudRoundPnl');
+      roundPnlEl.textContent = `${rSign}${formatWon(roundNetPnl)} (${roundTrades.length}건)`;
+      roundPnlEl.className = `hud-val ${roundNetPnl > 0 ? 'text-long' : roundNetPnl < 0 ? 'text-short' : ''}`;
+
+      document.getElementById('hudRoundFees').textContent = `-${formatWon(roundTotalFees)}`;
+
+      const totalTrades = stats.wins + stats.losses;
+      const winRate = totalTrades > 0 ? ((stats.wins / totalTrades) * 100).toFixed(1) : '0.0';
+      document.getElementById('hudWinRate').textContent = `${winRate}% (${stats.wins}승 ${stats.losses}패)`;
+
+      // Live Price Banner
+      const curPrice = getCurrentPrice();
+      const diffPct = ((curPrice - BASE_OPEN_PRICE) / BASE_OPEN_PRICE) * 100;
+      const priceEl = document.getElementById('livePrice');
+      const diffEl = document.getElementById('liveChangeFromStart');
+
+      priceEl.textContent = formatPrice(curPrice);
+      priceEl.className = `current-price ${diffPct > 0 ? 'text-long' : diffPct < 0 ? 'text-short' : ''}`;
+
+      diffEl.textContent = `(${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(2)}%)`;
+      diffEl.className = diffPct > 0 ? 'text-long' : diffPct < 0 ? 'text-short' : '';
+
+      // OHLC Readout
+      const activeCandles = getActiveCandles();
+      updateZoomLabel(activeCandles.length);
+      const vp = getViewportRange(activeCandles.length);
+      const visibleCandles = activeCandles.slice(vp.startIdx, vp.endIdx);
+      const targetCandle = (hoverVisibleIdx >= 0 && hoverVisibleIdx < visibleCandles.length)
+        ? visibleCandles[hoverVisibleIdx]
+        : activeCandles[activeCandles.length - 1];
+      if (targetCandle) {
+        document.getElementById('hoverO').textContent = formatAxisPrice(targetCandle.open);
+        document.getElementById('hoverH').textContent = formatAxisPrice(targetCandle.high);
+        document.getElementById('hoverL').textContent = formatAxisPrice(targetCandle.low);
+        document.getElementById('hoverC').textContent = formatAxisPrice(targetCandle.close);
+      }
+
+      // Playback Progress
+      document.getElementById('timeElapsedLabel').textContent = formatElapsed(revealedCount);
+      document.getElementById('candleCountLabel').textContent = `${revealedCount} / ${TOTAL_15M_CANDLES}봉 (15분 기준)`;
+      document.getElementById('progressFill').style.width = `${(revealedCount / TOTAL_15M_CANDLES) * 100}%`;
+
+      const disableAdvance = isReviewMode || roundFinished || revealedCount >= TOTAL_15M_CANDLES;
+      document.getElementById('btnStep15').disabled = disableAdvance;
+      document.getElementById('btnStep60').disabled = disableAdvance;
+      document.getElementById('btnAutoPlay').disabled = disableAdvance;
+
+      // Order Sizing & Fee Preview
+      const sizing = getOrderSizing();
+      const btnLong = document.getElementById('btnOpenLong');
+      const btnShort = document.getElementById('btnOpenShort');
+
+      document.getElementById('previewOpenFee').textContent = `-${formatWon(sizing.openFee)}`;
+
+      if (!position) {
+        document.getElementById('allocBlockTitle').textContent = '② 오픈 비중 선택 (총시드 기준)';
+        document.getElementById('openBlockTitle').textContent = '③ 롱 / 숏 오픈';
+        const capNote = sizing.isCapped ? ' (수수료 제외 최대)' : '';
+        document.getElementById('previewMarginLabel').textContent = `투입 증거금 (총시드 ${selectedAllocation}%):`;
+        document.getElementById('previewMargin').textContent = `${formatWon(sizing.actualMargin)}${capNote}`;
+        document.getElementById('previewSecondLabel').textContent = '총 주문 규모:';
+        document.getElementById('previewSecondVal').textContent = formatWon(sizing.openNotional);
+
+        document.getElementById('btnLongTitle').textContent = '롱 오픈 (LONG)';
+        document.getElementById('btnLongSub').textContent = `총시드 ${selectedAllocation}% 매수 진입`;
+        document.getElementById('btnShortTitle').textContent = '숏 오픈 (SHORT)';
+        document.getElementById('btnShortSub').textContent = `총시드 ${selectedAllocation}% 매도 진입`;
+
+        btnLong.disabled = disableAdvance || sizing.actualMargin < 1000;
+        btnShort.disabled = disableAdvance || sizing.actualMargin < 1000;
+      } else {
+        document.getElementById('allocBlockTitle').textContent = '② 추가 오픈 비중 (총시드 기준)';
+        document.getElementById('openBlockTitle').textContent = '③ 포지션 추가 오픈 (총시드 잔여분)';
+
+        const capNote = sizing.isCapped ? ' (잔여 최대)' : '';
+        document.getElementById('previewMarginLabel').textContent = `추가 투입금 (총시드 ${selectedAllocation}%):`;
+        document.getElementById('previewMargin').textContent = sizing.actualMargin >= 1000
+          ? `+${formatWon(sizing.actualMargin)}${capNote}`
+          : '0원 (한도 도달)';
+
+        const remPct = sizing.totalSeed > 0 ? ((sizing.maxAffordableMargin / sizing.totalSeed) * 100).toFixed(0) : '0';
+        document.getElementById('previewSecondLabel').textContent = '추가 가능 잔여 시드:';
+        document.getElementById('previewSecondVal').textContent = `${formatWon(sizing.maxAffordableMargin)} (${remPct}%)`;
+
+        const addPctLabel = sizing.isCapped ? `잔여 ${remPct}%` : `총시드 +${selectedAllocation}%`;
+
+        if (position.side === 'LONG') {
+          document.getElementById('btnLongTitle').textContent = '롱 추가 오픈 (+LONG)';
+          document.getElementById('btnLongSub').textContent = sizing.actualMargin >= 1000
+            ? `${addPctLabel} 추가 · 평단가 갱신`
+            : '총시드 100% 투입 완료';
+          document.getElementById('btnShortTitle').textContent = '숏 오픈 불가';
+          document.getElementById('btnShortSub').textContent = '롱 100% 청산 후 가능';
+
+          btnLong.disabled = disableAdvance || sizing.actualMargin < 1000;
+          btnShort.disabled = true;
+        } else {
+          document.getElementById('btnLongTitle').textContent = '롱 오픈 불가';
+          document.getElementById('btnLongSub').textContent = '숏 100% 청산 후 가능';
+          document.getElementById('btnShortTitle').textContent = '숏 추가 오픈 (+SHORT)';
+          document.getElementById('btnShortSub').textContent = sizing.actualMargin >= 1000
+            ? `${addPctLabel} 추가 · 평단가 갱신`
+            : '총시드 100% 투입 완료';
+
+          btnLong.disabled = true;
+          btnShort.disabled = disableAdvance || sizing.actualMargin < 1000;
+        }
+      }
+
+      // Active Position Panel & Close Weight Preview (Including 0.02% Taker Close Fee)
+      const emptyView = document.getElementById('emptyPositionView');
+      const activeView = document.getElementById('activePositionView');
+      const entryBadge = document.getElementById('posEntryCountBadge');
+
+      if (!position) {
+        emptyView.style.display = 'flex';
+        activeView.style.display = 'none';
+        entryBadge.textContent = '';
+      } else {
+        emptyView.style.display = 'none';
+        activeView.style.display = 'flex';
+
+        entryBadge.textContent = `${position.entryCount}회 진입 보유중`;
+
+        const levStr = Number.isInteger(position.effectiveLeverage)
+          ? `${position.effectiveLeverage}x`
+          : `${position.effectiveLeverage.toFixed(1)}x`;
+        const badge = document.getElementById('posSideBadge');
+        badge.textContent = `${position.side} ${levStr}`;
+        badge.className = `pos-badge num ${position.side === 'LONG' ? 'long' : 'short'}`;
+
+        const totalAllocPct = stats.seed > 0 ? ((position.margin / stats.seed) * 100).toFixed(0) : '0';
+        document.getElementById('posAllocBadge').textContent = `총시드 ${totalAllocPct}% · ${formatWon(position.margin)}`;
+
+        const { grossPnl, estCloseFee, netPnl, netRoePct } = calcPositionMetrics(position, curPrice);
+        const sign = netPnl >= 0 ? '+' : '';
+        const pnlEl = document.getElementById('posUnrealizedPnl');
+        const roeEl = document.getElementById('posUnrealizedRoe');
+
+        pnlEl.textContent = `${sign}${formatWon(netPnl)}`;
+        pnlEl.className = `pos-pnl-amount ${netPnl >= 0 ? 'text-long' : 'text-short'}`;
+        roeEl.textContent = `(${sign}${netRoePct.toFixed(2)}%)`;
+        roeEl.className = `pos-pnl-roe ${netPnl >= 0 ? 'text-long' : 'text-short'}`;
+
+        document.getElementById('posEntryPrice').textContent = formatPrice(position.avgEntryPrice);
+        document.getElementById('posCurrentPrice').textContent = formatPrice(curPrice);
+        document.getElementById('posLiqPrice').textContent = position.effectiveLeverage <= 1.0001 ? '없음 (1x)' : formatPrice(position.liqPrice);
+        document.getElementById('posPaidOpenFee').textContent = `-${formatWon(position.paidOpenFee)}`;
+
+        const closeRatio = selectedCloseAllocation / 100;
+        const previewCloseFee = Math.round(estCloseFee * closeRatio);
+        const previewNetSlicePnl = netPnl * closeRatio;
+        const cSign = previewNetSlicePnl >= 0 ? '+' : '';
+
+        document.getElementById('closePreviewFeeLabel').textContent = `클로즈 수수료(0.02%): -${formatWon(previewCloseFee)}`;
+        const closePnlEl = document.getElementById('closePreviewPnl');
+        closePnlEl.textContent = `예상 순손익: ${cSign}${formatWon(previewNetSlicePnl)}`;
+        closePnlEl.className = previewNetSlicePnl >= 0 ? 'text-long' : 'text-short';
+
+        const btnClose = document.getElementById('btnClosePos');
+        btnClose.textContent = selectedCloseAllocation === 100
+          ? '포지션 전체 닫기 (100% 청산)'
+          : `포지션 부분 닫기 (${selectedCloseAllocation}% 청산)`;
+      }
+    }
+
+    // High-DPI Candlestick Chart Renderer (Supports Zoom & Horizontal Pan)
+    function drawChart() {
+      const wrapper = document.getElementById('canvasWrapper');
+      const canvas = document.getElementById('chartCanvas');
+      const dpr = window.devicePixelRatio || 1;
+      const width = wrapper.clientWidth;
+      const height = wrapper.clientHeight;
+
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      ctx.fillStyle = '#0d111a';
+      ctx.fillRect(0, 0, width, height);
+
+      const allCandles = getActiveCandles();
+      if (!allCandles.length) return;
+
+      const padLeft = 14;
+      const padRight = 76;
+      const padTop = 20;
+      const padBottom = 28;
+      const plotW = width - padLeft - padRight;
+      const plotH = height - padTop - padBottom;
+
+      const vp = getViewportRange(allCandles.length);
+      const visibleCandles = allCandles.slice(vp.startIdx, vp.endIdx);
+      const isZoomed = visibleCandleLimit !== null && visibleCandleLimit < allCandles.length;
+
+      const maxSlots = isZoomed
+        ? visibleCandles.length
+        : (timeframe === '15m'
+          ? Math.min(Math.max(48, visibleCandles.length + 4), 292)
+          : Math.min(Math.max(24, visibleCandles.length + 2), 74));
+
+      const slotW = plotW / Math.max(1, maxSlots);
+
+      let minPrice = Infinity;
+      let maxPrice = -Infinity;
+      for (const c of visibleCandles) {
+        if (c.low < minPrice) minPrice = c.low;
+        if (c.high > maxPrice) maxPrice = c.high;
+      }
+      if (showOptions.anchor && !isZoomed) {
+        minPrice = Math.min(minPrice, BASE_OPEN_PRICE);
+        maxPrice = Math.max(maxPrice, BASE_OPEN_PRICE);
+      }
+      if (position) {
+        minPrice = Math.min(minPrice, position.avgEntryPrice);
+        maxPrice = Math.max(maxPrice, position.avgEntryPrice);
+      }
+
+      const range = Math.max(5.0, maxPrice - minPrice);
+      minPrice -= range * 0.12;
+      maxPrice += range * 0.12;
+
+      const priceToY = (p) => padTop + ((maxPrice - p) / (maxPrice - minPrice)) * plotH;
+
+      // Horizontal Price Grid & Right Axis Labels
+      ctx.strokeStyle = 'rgba(38, 47, 66, 0.55)';
+      ctx.lineWidth = 1;
+      ctx.font = '11px monospace';
+      ctx.fillStyle = '#64748b';
+      ctx.textAlign = 'left';
+
+      const gridSteps = 6;
+      for (let g = 0; g <= gridSteps; g++) {
+        const p = minPrice + ((maxPrice - minPrice) * g) / gridSteps;
+        const y = Math.round(priceToY(p)) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(width - padRight, y);
+        ctx.stroke();
+
+        ctx.fillText(formatAxisPrice(p), width - padRight + 6, y + 4);
+      }
+
+      // Day Divider Vertical Lines
+      if (showOptions.days) {
+        const candlesPerDay = timeframe === '15m' ? 96 : 24;
+        for (let d = 0; d < 3; d++) {
+          const globalIdx = d * candlesPerDay;
+          if (globalIdx >= vp.startIdx && globalIdx < vp.endIdx) {
+            const localIdx = globalIdx - vp.startIdx;
+            const x = Math.round(padLeft + localIdx * slotW) + 0.5;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x, padTop);
+            ctx.lineTo(x, height - padBottom);
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.75)';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(`${d + 1}일차 시작`, x + 5, padTop + 12);
+            ctx.restore();
+          }
+        }
+      }
+
+      // 1,000.00 KRW Anchor Line
+      if (showOptions.anchor && BASE_OPEN_PRICE >= minPrice && BASE_OPEN_PRICE <= maxPrice) {
+        const y1000 = Math.round(priceToY(BASE_OPEN_PRICE)) + 0.5;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.75)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y1000);
+        ctx.lineTo(width - padRight, y1000);
+        ctx.stroke();
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillRect(width - padRight + 2, y1000 - 9, 70, 18);
+        ctx.fillStyle = '#0b0e14';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText('1,000.00', width - padRight + 6, y1000 + 4);
+        ctx.restore();
+      }
+
+      // Candlesticks
+      const bodyW = Math.max(2, Math.min(28, slotW * 0.68));
+      for (let i = 0; i < visibleCandles.length; i++) {
+        const c = visibleCandles[i];
+        const centerX = padLeft + i * slotW + slotW / 2;
+        const isUp = c.close >= c.open;
+        const color = isUp ? '#10b981' : '#f43f5e';
+
+        const yHigh = priceToY(c.high);
+        const yLow = priceToY(c.low);
+        const yOpen = priceToY(c.open);
+        const yClose = priceToY(c.close);
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(1.2, Math.min(2.2, slotW * 0.1));
+        ctx.beginPath();
+        ctx.moveTo(centerX, yHigh);
+        ctx.lineTo(centerX, yLow);
+        ctx.stroke();
+
+        const bodyTop = Math.min(yOpen, yClose);
+        const bodyH = Math.max(1.5, Math.abs(yClose - yOpen));
+        ctx.fillStyle = color;
+        ctx.fillRect(centerX - bodyW / 2, bodyTop, bodyW, bodyH);
+      }
+
+      // Moving Averages (20 MA & 60 MA)
+      if (showOptions.ma) {
+        const ma20Full = calculateSMA(allCandles, 20);
+        const ma60Full = calculateSMA(allCandles, 60);
+        drawLineSeries(ctx, ma20Full.slice(vp.startIdx, vp.endIdx), slotW, padLeft, priceToY, '#38bdf8', 1.5);
+        drawLineSeries(ctx, ma60Full.slice(vp.startIdx, vp.endIdx), slotW, padLeft, priceToY, '#c084fc', 1.5);
+      }
+
+      // Trade Markers
+      for (const m of chartMarkers) {
+        const globalIdx = timeframe === '15m' ? m.candleIndex15m : Math.floor(m.candleIndex15m / 4);
+        if (globalIdx >= vp.startIdx && globalIdx < vp.endIdx) {
+          const localIdx = globalIdx - vp.startIdx;
+          const mx = padLeft + localIdx * slotW + slotW / 2;
+          const my = priceToY(m.price);
+          ctx.save();
+          if (m.type === 'OPEN' || m.type === 'ADD') {
+            ctx.fillStyle = m.side === 'LONG' ? '#10b981' : '#f43f5e';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.arc(mx, my, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = m.type === 'LIQ' ? '#fb923c' : '#f8fafc';
+            ctx.strokeStyle = m.side === 'LONG' ? '#10b981' : '#f43f5e';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.moveTo(mx, my - 5.5);
+            ctx.lineTo(mx + 5.5, my);
+            ctx.lineTo(mx, my + 5.5);
+            ctx.lineTo(mx - 5.5, my);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+
+      // Active Position Average Entry Line & Liquidation Line
+      if (position) {
+        const yEntry = Math.round(priceToY(position.avgEntryPrice)) + 0.5;
+        const posColor = position.side === 'LONG' ? '#10b981' : '#f43f5e';
+
+        ctx.save();
+        ctx.strokeStyle = posColor;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(padLeft, yEntry);
+        ctx.lineTo(width - padRight, yEntry);
+        ctx.stroke();
+
+        ctx.fillStyle = posColor;
+        ctx.font = 'bold 10.5px sans-serif';
+        ctx.fillText(`평단 ${formatAxisPrice(position.avgEntryPrice)} (${position.entryCount}회)`, padLeft + 6, yEntry - 5);
+
+        ctx.fillRect(width - padRight + 2, yEntry - 9, 70, 18);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(formatAxisPrice(position.avgEntryPrice), width - padRight + 6, yEntry + 4);
+        ctx.restore();
+
+        if (position.effectiveLeverage > 1.0001 && position.liqPrice >= minPrice && position.liqPrice <= maxPrice) {
+          const yLiq = Math.round(priceToY(position.liqPrice)) + 0.5;
+          ctx.save();
+          ctx.strokeStyle = '#fb923c';
+          ctx.lineWidth = 1.1;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(padLeft, yLiq);
+          ctx.lineTo(width - padRight, yLiq);
+          ctx.stroke();
+          ctx.fillStyle = '#fb923c';
+          ctx.font = '10px sans-serif';
+          ctx.fillText(`강제청산 ${formatAxisPrice(position.liqPrice)}`, padLeft + 6, yLiq + 12);
+          ctx.restore();
+        }
+      }
+
+      // Current Price Horizontal Tag on Right Axis
+      const curPrice = getCurrentPrice();
+      if (curPrice >= minPrice && curPrice <= maxPrice) {
+        const yCur = Math.round(priceToY(curPrice)) + 0.5;
+        ctx.save();
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(width - padRight + 2, yCur - 9, 70, 18);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(formatAxisPrice(curPrice), width - padRight + 6, yCur + 4);
+        ctx.restore();
+      }
+
+      // Crosshair on Mouse Hover
+      if (!isDragging && hoverVisibleIdx >= 0 && hoverVisibleIdx < visibleCandles.length) {
+        const c = visibleCandles[hoverVisibleIdx];
+        const cx = Math.round(padLeft + hoverVisibleIdx * slotW + slotW / 2) + 0.5;
+        const cy = Math.round(priceToY(c.close)) + 0.5;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(226, 232, 240, 0.35)';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(cx, padTop);
+        ctx.lineTo(cx, height - padBottom);
+        ctx.moveTo(padLeft, cy);
+        ctx.lineTo(width - padRight, cy);
+        ctx.stroke();
+
+        ctx.fillStyle = '#1e293b';
+        const labelW = 108;
+        const boxX = Math.max(padLeft, Math.min(width - padRight - labelW, cx - labelW / 2));
+        ctx.fillRect(boxX, height - padBottom + 4, labelW, 20);
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(c.label, boxX + labelW / 2, height - padBottom + 18);
+        ctx.restore();
+      }
+    }
+
+    function drawLineSeries(ctx, series, slotW, padLeft, priceToY, color, lineWidth) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i < series.length; i++) {
+        if (series[i] === null) continue;
+        const x = padLeft + i * slotW + slotW / 2;
+        const y = priceToY(series[i]);
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Canvas Mouse Events: Wheel Zoom + Drag Pan + Hover Crosshair
+    const chartCanvas = document.getElementById('chartCanvas');
+
+    chartCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        zoomChart(0.8);
+      } else if (e.deltaY > 0) {
+        zoomChart(1.25);
+      }
+    }, { passive: false });
+
+    chartCanvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartOffset = viewEndOffset;
+      chartCanvas.classList.add('grabbing');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = chartCanvas.getBoundingClientRect();
+      const padLeft = 14;
+      const padRight = 76;
+      const plotW = Math.max(100, rect.width - padLeft - padRight);
+      const allCandles = getActiveCandles();
+      const vp = getViewportRange(allCandles.length);
+      const slotW = plotW / Math.max(1, vp.count);
+
+      const dx = e.clientX - dragStartX;
+      const candleShift = Math.round(dx / slotW);
+      const maxOffset = Math.max(0, allCandles.length - vp.count);
+      viewEndOffset = Math.max(0, Math.min(maxOffset, dragStartOffset + candleShift));
+      drawChart();
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        chartCanvas.classList.remove('grabbing');
+        drawChart();
+      }
+    });
+
+    chartCanvas.addEventListener('mousemove', (e) => {
+      if (isDragging) return;
+      const rect = chartCanvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const allCandles = getActiveCandles();
+      const padLeft = 14;
+      const padRight = 76;
+      const plotW = rect.width - padLeft - padRight;
+
+      const vp = getViewportRange(allCandles.length);
+      const visibleCandles = allCandles.slice(vp.startIdx, vp.endIdx);
+      const isZoomed = visibleCandleLimit !== null && visibleCandleLimit < allCandles.length;
+      const maxSlots = isZoomed
+        ? visibleCandles.length
+        : (timeframe === '15m'
+          ? Math.min(Math.max(48, visibleCandles.length + 4), 292)
+          : Math.min(Math.max(24, visibleCandles.length + 2), 74));
+
+      const slotW = plotW / Math.max(1, maxSlots);
+
+      const idx = Math.floor((mouseX - padLeft) / slotW);
+      if (idx >= 0 && idx < visibleCandles.length) {
+        hoverVisibleIdx = idx;
+      } else {
+        hoverVisibleIdx = -1;
+      }
+      updateUI();
+      drawChart();
+    });
+
+    chartCanvas.addEventListener('mouseleave', () => {
+      hoverVisibleIdx = -1;
+      updateUI();
+      drawChart();
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+      if (document.getElementById('summaryModal').classList.contains('show')) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        advanceCandles(1);
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        advanceCandles(4);
+      }
+    });
+
+    // Reset Stats Button
+    document.getElementById('btnResetStats').addEventListener('click', () => {
+      if (confirm('누적 승률 기록과 시드머니를 1,000,000원으로 초기화할까요?')) {
+        stats = { seed: INITIAL_SEED, wins: 0, losses: 0, totalWinPnl: 0, totalLossPnl: 0, totalFeesPaid: 0 };
+        saveStats();
+        startNewRound();
+      }
+    });
+
+    window.addEventListener('resize', drawChart);
+
+    // Initialize First Round
+    startNewRound();
+  </script>
+</body>
+</html>
